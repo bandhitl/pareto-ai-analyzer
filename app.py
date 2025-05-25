@@ -132,7 +132,7 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
                         ]
                         display_columns = [col for col in desired_column_order if col in df_analysis.columns]
                         
-                        # ✨✨✨ 3. กำหนด column_config เพื่อปรับความกว้างของคอลัมน์ ✨✨✨
+                        # ✨ แก้ไขปัญหาการแสดงผลตาราง ✨
                         column_configs = {}
                         text_heavy_columns = [
                             "Potential Cause (PVC Specific)", 
@@ -140,13 +140,13 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
                             "Short-Term Action/Plan (1-3 months)", 
                             "Long-Term Action/Plan (6-12 months)"
                         ]
-                        # ตรวจสอบว่าชื่อคอลัมน์ใน text_heavy_columns ตรงกับชื่อใน display_columns (ซึ่งเป็นชื่อที่ "สวยงาม" แล้ว)
                         
                         for col_name in display_columns:
                             if col_name in text_heavy_columns:
                                 column_configs[col_name] = st.column_config.TextColumn(
                                     label=col_name,
-                                    width="large"  # "small", "medium", "large", or integer (pixels)
+                                    width="large",
+                                    help=f"Click to expand {col_name}"
                                 )
                             elif col_name == "Problem":
                                 column_configs[col_name] = st.column_config.TextColumn(
@@ -158,19 +158,44 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
                                     label=col_name,
                                     width="small"
                                 )
-                            else: # สำหรับคอลัมน์อื่นๆ ที่อาจจะไม่ได้กำหนดไว้
-                                column_configs[col_name] = st.column_config.TextColumn(
-                                    label=col_name,
-                                    width="medium"
-                                )
                         
+                        # แสดงตารางแบบใหม่ที่อ่านง่ายขึ้น
                         st.dataframe(
                             df_analysis[display_columns], 
                             use_container_width=True,
                             column_config=column_configs,
-                            # height=600 # ลองเอา height ออกเพื่อให้ตารางปรับความสูงตามเนื้อหา หรือกำหนดค่าที่เหมาะสม
+                            height=800  # เพิ่มความสูงของตาราง
                         )
-                        # ✨✨✨ สิ้นสุดการกำหนด column_config ✨✨✨
+                        
+                        # เพิ่มส่วนแสดงรายละเอียดแบบ Card สำหรับอ่านง่ายขึ้น
+                        st.subheader("📋 Detailed Analysis (Expanded View)")
+                        
+                        for idx, row in df_analysis.iterrows():
+                            with st.expander(f"🔍 {row['Problem']}", expanded=False):
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.markdown("**🎯 Potential Causes:**")
+                                    # แปลง \n เป็น bullet points
+                                    causes = row['Potential Cause (PVC Specific)'].replace('\\n', '\n')
+                                    if not causes.startswith('- '):
+                                        causes = '- ' + causes.replace('\n', '\n- ')
+                                    st.markdown(causes)
+                                    
+                                    st.markdown("**💡 Suggested Solutions:**")
+                                    solutions = row['Suggested Solution (PVC Specific)'].replace('\\n', '\n')
+                                    st.markdown(solutions)
+                                    
+                                    st.markdown(f"**👥 Responsible Department:** {row['Responsible Department']}")
+                                
+                                with col2:
+                                    st.markdown("**⏰ Short-Term Actions (1-3 months):**")
+                                    short_term = row['Short-Term Action/Plan (1-3 months)'].replace('\\n', '\n')
+                                    st.markdown(short_term)
+                                    
+                                    st.markdown("**🎯 Long-Term Actions (6-12 months):**")
+                                    long_term = row['Long-Term Action/Plan (6-12 months)'].replace('\\n', '\n')
+                                    st.markdown(long_term)
 
                     else:
                         st.error("AI did not return data in the expected list format.")
