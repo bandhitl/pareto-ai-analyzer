@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import openai
-# import json # ไม่จำเป็นต้องใช้ json อีกต่อไป
 
 st.set_page_config(layout="wide")
 
@@ -11,11 +10,10 @@ openai.api_key = st.secrets["openai_api_key"]
 st.title("PVC Pipe Production Problem Analyzer & AI Action Plan")
 st.markdown("Enter manufacturing problems (optionally with machine numbers). The AI expert will analyze, show an enhanced Pareto chart, and provide a detailed textual action plan.")
 
-# --- 1. ส่วนรับข้อมูลปัญหา และเพิ่ม "เลขที่เครื่องจักร" ---
 num_problems = st.number_input("Number of problem entries:", min_value=1, max_value=20, value=3,
                                help="Enter the number of distinct problem occurrences or types you want to log. You can log the same problem type multiple times if it occurs on different machines or at different times.")
 
-problem_data = [] # ใช้เก็บข้อมูลแต่ละรายการปัญหา
+problem_data = []
 
 problem_options = [
     "Uneven wall thickness", "Rough surface (internal/external)", "Cracks or longitudinal splits",
@@ -28,7 +26,7 @@ problem_options = [
 
 for i in range(num_problems):
     st.markdown(f"--- \n**Problem Entry {i+1}**")
-    col1, col2, col3 = st.columns([3, 1, 2]) # ปรับสัดส่วนคอลัมน์
+    col1, col2, col3 = st.columns([3, 1, 2])
     
     with col1:
         problem_desc_label = f"Problem Description {i+1}"
@@ -38,11 +36,11 @@ for i in range(num_problems):
         else:
             problem_name = selected_problem
     with col2:
-        count = st.number_input(f"Count {i+1}", min_value=1, step=1, key=f"pcount_{i}", value=1) # Default count to 1
+        count = st.number_input(f"Count {i+1}", min_value=1, step=1, key=f"pcount_{i}", value=1)
     with col3:
         machine_no = st.text_input(f"Machine No. (Optional) for Entry {i+1}", key=f"machine_{i}")
 
-    if problem_name.strip(): # ตรวจสอบว่ามีการระบุชื่อปัญหา
+    if problem_name.strip():
         problem_data.append({
             "Problem": problem_name.strip(),
             "Count": count,
@@ -54,8 +52,6 @@ if st.button("🔍 Analyze PVC Problems & Generate Action Plan"):
         st.warning("Please enter at least one problem entry.")
     else:
         df_raw = pd.DataFrame(problem_data)
-
-        # สร้าง DataFrame สำหรับ Pareto Chart (รวมปัญหาชื่อเดียวกัน)
         df_pareto = df_raw.groupby("Problem", as_index=False)["Count"].sum()
         df_pareto = df_pareto[df_pareto["Count"] > 0].sort_values(by="Count", ascending=False).reset_index(drop=True)
 
@@ -64,12 +60,11 @@ if st.button("🔍 Analyze PVC Problems & Generate Action Plan"):
         else:
             df_pareto["Cumulative %"] = df_pareto["Count"].cumsum() / df_pareto["Count"].sum() * 100
 
-            # --- 2. การเน้นสีแท่ง Pareto สำหรับ 80% แรก ---
             st.subheader("Pareto Chart of PVC Pipe Production Problems")
-            fig, ax1 = plt.subplots(figsize=(12, 6)) # ปรับขนาดกราฟให้กว้างขึ้นเล็กน้อย
+            fig, ax1 = plt.subplots(figsize=(12, 6))
 
             default_color = 'deepskyblue'
-            highlight_color = 'crimson' # สีแดงสำหรับเน้น
+            highlight_color = 'crimson'
             
             bar_colors = [default_color] * len(df_pareto)
             first_over_80_idx = -1
@@ -78,35 +73,41 @@ if st.button("🔍 Analyze PVC Problems & Generate Action Plan"):
                     first_over_80_idx = idx
                     break
             
-            if first_over_80_idx != -1: # ถ้ามีปัญหาที่ทำให้เกิน 80%
+            if first_over_80_idx != -1:
                 for i in range(first_over_80_idx + 1):
                     bar_colors[i] = highlight_color
-            else: # ถ้าทุกปัญหารวมกันแล้วยังไม่เกิน 80% (หรือเท่ากับ 80% พอดี)
+            else:
                 bar_colors = [highlight_color] * len(df_pareto)
 
             ax1.bar(df_pareto["Problem"], df_pareto["Count"], color=bar_colors)
             
             ax2 = ax1.twinx()
-            ax2.plot(df_pareto["Problem"], df_pareto["Cumulative %"], color="darkorange", marker='o', linewidth=2, linestyle='--') #เปลี่ยนสีเส้น%
+            ax2.plot(df_pareto["Problem"], df_pareto["Cumulative %"], color="darkorange", marker='o', linewidth=2, linestyle='--')
             
             ax1.set_xlabel("Problem Description", fontweight='bold', fontsize=12)
             ax1.set_ylabel("Frequency Count", fontweight='bold', fontsize=12)
             ax2.set_ylabel("Cumulative Percentage (%)", fontweight='bold', color="darkorange", fontsize=12)
             
-            ax1.tick_params(axis='x', rotation=45, ha='right', labelsize=10)
+            # ✨✨✨ บรรทัดที่แก้ไข ✨✨✨
+            # ax1.bar() ได้กำหนด x-ticks และ labels เริ่มต้นจาก df_pareto["Problem"] แล้ว
+            # เราจะตั้งค่าคุณสมบัติของ x-tick labels เหล่านี้ใหม่:
+            ax1.set_xticklabels(df_pareto["Problem"], rotation=45, ha='right', fontsize=10)
+            
+            # ตั้งค่าขนาดตัวอักษรสำหรับ y-axis ticks ของ ax1 และ ax2
             ax1.tick_params(axis='y', labelsize=10)
             ax2.tick_params(axis='y', labelcolor="darkorange", labelsize=10)
+            # ✨✨✨ สิ้นสุดการแก้ไข ✨✨✨
 
             ax1.grid(axis='y', linestyle='--', alpha=0.7)
-            ax2.axhline(80, color='dimgray', linestyle=':', linewidth=1.5, label='80% Line') #ปรับเส้น 80%
+            ax2.axhline(80, color='dimgray', linestyle=':', linewidth=1.5, label='80% Line')
             ax2.legend(loc="upper right")
             
             plt.title("Pareto Analysis of Production Problems", fontsize=16, fontweight='bold')
             fig.tight_layout()
             st.pyplot(fig)
 
-            # --- 3. เตรียมข้อมูลสำหรับ AI (รวมเลขที่เครื่องจักร) และเปลี่ยน AI Output เป็น Text ---
-            num_top_problems_to_analyze = min(len(df_pareto), 3) # วิเคราะห์ Top 3 ปัญหา
+            # --- ส่วน AI (เหมือนเดิมจาก Response #9) ---
+            num_top_problems_to_analyze = min(len(df_pareto), 3)
             top_problem_names = df_pareto.head(num_top_problems_to_analyze)["Problem"].tolist()
 
             problem_details_for_ai = (
@@ -122,7 +123,6 @@ if st.button("🔍 Analyze PVC Problems & Generate Action Plan"):
                 problem_details_for_ai += f"**Problem {i+1}: {prob_name}**\n"
                 problem_details_for_ai += f"- Total Occurrences: {total_count}\n"
                 
-                # ดึงข้อมูลเลขเครื่องจักรที่เกี่ยวข้องกับปัญหานี้จาก df_raw
                 occurrences = df_raw[df_raw["Problem"] == prob_name]
                 machine_numbers_involved = occurrences[occurrences["Machine No."] != "N/A"]["Machine No."].unique()
                 
@@ -148,7 +148,7 @@ if st.button("🔍 Analyze PVC Problems & Generate Action Plan"):
                     "Ensure your response is a well-organized textual report. Use markdown formatting like bold headings (e.g., **Potential Causes (PVC Specific):**) and bullet points (e.g., using '-' or '*') for readability where appropriate within your textual explanation for each problem. Do NOT output any JSON or table structures."
                 )
                 
-                ai_response_text = "" # Initialize for debugging
+                ai_response_text = ""
                 try:
                     response = openai.chat.completions.create(
                         model="gpt-4o", 
@@ -156,11 +156,11 @@ if st.button("🔍 Analyze PVC Problems & Generate Action Plan"):
                             {"role": "system", "content": system_prompt_content_text},
                             {"role": "user", "content": problem_details_for_ai}
                         ],
-                        temperature=0.3 # Temperature ปานกลางสำหรับ text generation
+                        temperature=0.3
                     )
                     ai_response_text = response.choices[0].message.content
                     
-                    st.markdown(ai_response_text) # แสดงผลลัพธ์ AI เป็น Text
+                    st.markdown(ai_response_text)
 
                 except openai.APIError as e:
                     st.error(f"An OpenAI API error occurred: {e}")
@@ -171,10 +171,8 @@ if st.button("🔍 Analyze PVC Problems & Generate Action Plan"):
                         st.text("Raw AI response during unexpected error:")
                         st.text(ai_response_text)
             
-            # Download button (ข้อมูลดิบ Pareto)
             csv_pareto = df_pareto.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Pareto Analysis Data (CSV)", data=csv_pareto, file_name="pvc_pareto_analysis_data.csv", mime="text/csv")
             
-            # Optionally, allow download of raw input data
             csv_raw = df_raw.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Raw Input Data (CSV)", data=csv_raw, file_name="pvc_raw_input_data.csv", mime="text/csv")
