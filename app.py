@@ -6,39 +6,37 @@ import openai
 # Set OpenAI API key from secrets
 openai.api_key = st.secrets["openai_api_key"]
 
-st.title("PVC Pipe Production Problem Analyzer & AI Action Plan") # ปรับ Title
+st.title("PVC Pipe Production Problem Analyzer & AI Action Plan")
 st.markdown("Enter manufacturing problems. The AI expert in PVC pipe production will analyze, show a Pareto chart, and provide a detailed action plan table with short and long-term solutions.")
 
-num_problems = st.number_input("Number of problems:", min_value=1, max_value=10, value=3) # อาจลด max_value ลงถ้าตารางจะยาวมาก
+num_problems = st.number_input("Number of problems:", min_value=1, max_value=10, value=3)
 
 problem_names = []
 problem_counts = []
 
-# ปัญหาที่พบบ่อยในการผลิตท่อ PVC (สามารถปรับปรุง/เพิ่มเติมได้)
 problem_options = [
-    "Uneven wall thickness",             # ความหนาผนังไม่สม่ำเสมอ
-    "Rough surface (internal/external)", # ผิวหยาบ (ภายใน/ภายนอก)
-    "Cracks or longitudinal splits",     # รอยแตกหรือการแยกตามยาว
-    "Pipe warping or bending (ovality)", # ท่อบิดงอหรือเสียรูป (ความรี)
-    "Color inconsistency / streaks",     # สีไม่สม่ำเสมอ / เป็นเส้น
-    "Bubbles, voids, or blisters",       # ฟองอากาศ, โพรง, หรือรอยพุพอง
-    "Underfilled / short pipe",          # ฉีดไม่เต็ม / ท่อสั้น
-    "Burning / degradation marks",       # รอยไหม้ / การเสื่อมสภาพของพลาสติก
-    "Poor gelation / unmelted particles",# การหลอมละลายไม่สมบูรณ์ / มีอนุภาคไม่หลอมละลาย
-    "Contamination (black specks)",      # การปนเปื้อน (จุดดำ)
-    "Die lines / flow marks",            # เส้นจากดาย / รอยการไหล
-    "Excessive flash or burrs",          # ครีบส่วนเกิน
-    "Low impact strength",               # ความทนแรงกระแทกต่ำ
-    "Dimensional instability",           # ความไม่เสถียรของมิติ
-    "Bell end deformation / defects",    # ปลายบานเสียรูป / มีตำหนิ
+    "Uneven wall thickness",
+    "Rough surface (internal/external)",
+    "Cracks or longitudinal splits",
+    "Pipe warping or bending (ovality)",
+    "Color inconsistency / streaks",
+    "Bubbles, voids, or blisters",
+    "Underfilled / short pipe",
+    "Burning / degradation marks",
+    "Poor gelation / unmelted particles",
+    "Contamination (black specks)",
+    "Die lines / flow marks",
+    "Excessive flash or burrs",
+    "Low impact strength",
+    "Dimensional instability",
+    "Bell end deformation / defects",
     "Other (please specify)"
 ]
-
 
 for i in range(num_problems):
     col1, col2 = st.columns([3, 1])
     with col1:
-        selected = st.selectbox(f"Problem {i+1}", problem_options, key=f"prob_{i}", index=i % len(problem_options)) #กระจาย default selection
+        selected = st.selectbox(f"Problem {i+1}", problem_options, key=f"prob_{i}", index=i % len(problem_options))
         if selected == "Other (please specify)":
             name = st.text_input(f"Specify problem {i+1}", key=f"custom_prob_{i}")
         else:
@@ -48,7 +46,7 @@ for i in range(num_problems):
     problem_names.append(name)
     problem_counts.append(count)
 
-if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"): # ปรับชื่อปุ่ม
+if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
     df_raw = pd.DataFrame({"Problem": problem_names, "Count": problem_counts})
     df = df_raw.groupby("Problem", as_index=False).sum()
     df = df[df["Count"] > 0].sort_values(by="Count", ascending=False).reset_index(drop=True)
@@ -60,29 +58,38 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"): # ป
 
         st.subheader("Pareto Chart of PVC Pipe Production Problems")
         fig, ax1 = plt.subplots(figsize=(10, 5))
-        ax1.bar(df["Problem"], df["Count"], color="deepskyblue") # เปลี่ยนสี
+        
+        # สร้าง bar plot ซึ่งจะกำหนด x-ticks และ labels เริ่มต้นตาม df["Problem"]
+        ax1.bar(df["Problem"], df["Count"], color="deepskyblue") 
+        
         ax2 = ax1.twinx()
-        ax2.plot(df["Problem"], df["Cumulative %"], color="crimson", marker='o', linewidth=2) # เปลี่ยนสีและเพิ่มความหนาเส้น
+        ax2.plot(df["Problem"], df["Cumulative %"], color="crimson", marker='o', linewidth=2)
+        
         ax1.set_ylabel("Frequency Count", fontweight='bold')
         ax2.set_ylabel("Cumulative Percentage (%)", fontweight='bold')
-        ax1.tick_params(axis='x', rotation=45, ha='right')
-        ax1.grid(axis='y', linestyle='--', alpha=0.7) # เพิ่ม gridline
+
+        # ✨✨✨ บรรทัดที่แก้ไข ✨✨✨
+        # กำหนดคุณสมบัติของป้ายชื่อแกน x (rotation และ horizontal alignment)
+        # โดยใช้ df["Problem"] เป็นป้ายชื่อ ซึ่งตรงกับที่ bar plot ใช้
+        ax1.set_xticklabels(df["Problem"], rotation=45, ha='right')
+        # ✨✨✨ สิ้นสุดการแก้ไข ✨✨✨
+
+        ax1.grid(axis='y', linestyle='--', alpha=0.7)
         ax2.axhline(80, color='gray', linestyle='--', label='80% Vital Few Line')
-        ax2.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=1) # ปรับตำแหน่ง legend
-        fig.tight_layout() #ปรับ layout ให้พอดี
+        ax2.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=1)
+        fig.tight_layout()
         st.pyplot(fig)
 
         # --- ส่วนของการเรียก AI และแสดงผลเป็นตาราง ---
-        # เลือก top N ปัญหาจาก Pareto chart (เช่น top 3)
-        num_top_problems_to_analyze = min(len(df), 3) # วิเคราะห์ไม่เกิน 3 ปัญหา หรือน้อยกว่าถ้ามีไม่ถึง
+        num_top_problems_to_analyze = min(len(df), 3)
         top_problems_df = df.head(num_top_problems_to_analyze)
         
         problem_list_for_ai = f"Analyze the following top {num_top_problems_to_analyze} PVC pipe production problems and provide a detailed action plan:\n"
         for idx, row in top_problems_df.iterrows():
             problem_list_for_ai += f"{idx+1}. Problem: \"{row['Problem']}\" (occurred {row['Count']} times)\n"
 
-        st.subheader("⚙️ AI Expert Analysis & Action Plan for PVC Pipe Production") # ปรับ Subheader
-        with st.spinner("Consulting PVC Pipe Production AI Expert and drafting detailed action plan... This may take some time."): # ปรับ Spinner text
+        st.subheader("⚙️ AI Expert Analysis & Action Plan for PVC Pipe Production")
+        with st.spinner("Consulting PVC Pipe Production AI Expert and drafting detailed action plan... This may take some time."):
             
             system_prompt_content = (
                 "You are an AI assistant acting as an Expert in PVC pipe production with over 20 years of experience. "
@@ -100,12 +107,12 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"): # ป
             
             try:
                 response = openai.chat.completions.create(
-                    model="gpt-4o",  # หรือ "gpt-4-turbo" หรือ "gpt-4" (gpt-4o อาจจะเร็วและคุ้มค่ากว่า)
+                    model="gpt-4o",
                     messages=[
                         {"role": "system", "content": system_prompt_content},
                         {"role": "user", "content": problem_list_for_ai}
                     ],
-                    temperature=0.25 # รักษาอุณหภูมิต่ำเพื่อความแม่นยำและสอดคล้องกับโครงสร้าง
+                    temperature=0.25
                 )
                 ai_response_table_markdown = response.choices[0].message.content
                 
@@ -116,8 +123,6 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"): # ป
                 st.error("Please check your API key, account quota, model access, and network connection.")
             except Exception as e:
                 st.error(f"An unexpected error occurred while fetching AI insights: {e}")
-        # --- สิ้นสุดส่วน AI ---
 
-        # Download button (ข้อมูลดิบ Pareto)
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Download Pareto Data (CSV)", data=csv, file_name="pvc_pareto_data.csv", mime="text/csv")
