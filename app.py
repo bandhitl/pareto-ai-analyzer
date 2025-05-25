@@ -75,7 +75,8 @@ if st.button("🔍 Analyze Problems"):
             ],
             temperature=0.3
         )
-        result_text = response['choices'][0]['message']['content']
+        # ✨ แก้ไขบรรทัดนี้ ✨
+        result_text = response.choices[0].message.content
         st.markdown(result_text)
 
     # Download button
