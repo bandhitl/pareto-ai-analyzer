@@ -42,7 +42,8 @@ for i in range(num_problems):
     problem_counts.append(count)
 
 if st.button("🔍 Analyze Problems"):
-    df = pd.DataFrame({"Problem": problem_names, "Count": problem_counts})
+    df_raw = pd.DataFrame({"Problem": problem_names, "Count": problem_counts})
+    df = df_raw.groupby("Problem", as_index=False).sum()
     df = df[df["Count"] > 0].sort_values(by="Count", ascending=False).reset_index(drop=True)
     df["Cumulative %"] = df["Count"].cumsum() / df["Count"].sum() * 100
 
