@@ -2,7 +2,11 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import openai
-import json # Import a biblioteca json
+import json
+
+# ✨✨✨ 1. ตั้งค่า Layout ของหน้าให้เป็น "wide" ✨✨✨
+# ควรเป็นคำสั่ง Streamlit แรกสุดในสคริปต์ของคุณ
+st.set_page_config(layout="wide")
 
 # Set OpenAI API key from secrets
 openai.api_key = st.secrets["openai_api_key"]
@@ -48,7 +52,7 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
         df["Cumulative %"] = df["Count"].cumsum() / df["Count"].sum() * 100
 
         st.subheader("Pareto Chart of PVC Pipe Production Problems")
-        fig, ax1 = plt.subplots(figsize=(10, 5))
+        fig, ax1 = plt.subplots(figsize=(10, 5)) # อาจจะไม่ต้อง figsize ใหญ่มากถ้าหน้า wide แล้ว
         ax1.bar(df["Problem"], df["Count"], color="deepskyblue")
         ax2 = ax1.twinx()
         ax2.plot(df["Problem"], df["Cumulative %"], color="crimson", marker='o', linewidth=2)
@@ -71,7 +75,6 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
         st.subheader("⚙️ AI Expert Analysis & Action Plan for PVC Pipe Production")
         with st.spinner("Consulting PVC Pipe Production AI Expert and drafting detailed action plan... This may take some time."):
             
-            # ✨✨✨ ปรับปรุง System Prompt ให้ AI ตอบเป็น JSON ✨✨✨
             system_prompt_content = (
                 "You are an AI assistant acting as an Expert in PVC pipe production with over 20 years of experience. "
                 "Your task is to analyze the provided manufacturing problems specific to PVC pipe production. "
@@ -86,9 +89,8 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
                 "Example for a field with bullet points: \"- Point 1 related to the solution.\\n- Point 2 another detail.\\n- Yet another check to perform.\"\n"
                 "Ensure the output is ONLY the JSON string, without any surrounding text, markdown, or explanations. Do not use markdown table formatting."
             )
-            # ✨✨✨ สิ้นสุดการปรับปรุง System Prompt ✨✨✨
             
-            ai_response_content = "" # Initialize to store raw response for debugging
+            ai_response_content = ""
             try:
                 response = openai.chat.completions.create(
                     model="gpt-4o",
@@ -96,12 +98,10 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
                         {"role": "system", "content": system_prompt_content},
                         {"role": "user", "content": problem_list_for_ai}
                     ],
-                    temperature=0.1 # ลด temperature ลงอีกเพื่อให้ AI สร้าง JSON ที่แม่นยำ
+                    temperature=0.1
                 )
                 ai_response_content = response.choices[0].message.content
                 
-                # ✨✨✨ Parse JSON และแสดงผลด้วย st.dataframe ✨✨✨
-                # พยายามลบ ```json ... ``` หรือ ``` ... ``` ที่ AI อาจจะใส่มาครอบ JSON
                 if ai_response_content.strip().startswith("```json"):
                     json_str = ai_response_content.strip()[7:-3].strip()
                 elif ai_response_content.strip().startswith("```"):
@@ -109,18 +109,14 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
                 else:
                     json_str = ai_response_content.strip()
 
-                # ตรวจสอบว่า json_str ไม่ใช่ค่าว่างก่อน parse
                 if not json_str:
                     st.error("AI returned an empty response. Cannot parse JSON.")
                 else:
                     parsed_data = json.loads(json_str)
                     
-                    # ตรวจสอบว่า parsed_data เป็น list (ตามที่สั่ง AI)
                     if isinstance(parsed_data, list):
                         df_analysis = pd.DataFrame(parsed_data)
                         
-                        # จัดการคอลัมน์ที่อาจจะมีชื่อแตกต่างจากที่คาดหวังเล็กน้อย (ถ้า AI ไม่ได้ใช้ key ตรงเป๊ะ)
-                        # สร้าง mapping ของ key ที่เป็นไปได้กับชื่อคอลัมน์ที่ต้องการ
                         column_mapping = {
                             "Problem": "Problem",
                             "Potential_Cause_PVC_Specific": "Potential Cause (PVC Specific)",
@@ -130,38 +126,35 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
                             "Long_Term_Action_Plan": "Long-Term Action/Plan (6-12 months)"
                         }
                         
-                        # เปลี่ยนชื่อคอลัมน์ใน DataFrame (ถ้ามี)
                         df_analysis.rename(columns={k: v for k, v in column_mapping.items() if k in df_analysis.columns}, inplace=True)
                         
-                        # กำหนดลำดับคอลัมน์ที่ต้องการแสดงผล
                         desired_column_order = [
                             "Problem", "Potential Cause (PVC Specific)", "Suggested Solution (PVC Specific)",
                             "Responsible Department", "Short-Term Action/Plan (1-3 months)", 
                             "Long-Term Action/Plan (6-12 months)"
                         ]
-                        # กรองให้เหลือเฉพาะคอลัมน์ที่มีใน df_analysis และจัดเรียงตาม desired_column_order
                         display_columns = [col for col in desired_column_order if col in df_analysis.columns]
                         
-                        st.dataframe(df_analysis[display_columns])
+                        # ✨✨✨ 2. แสดงผล DataFrame โดยให้ใช้ความกว้างของ container ✨✨✨
+                        st.dataframe(df_analysis[display_columns], use_container_width=True)
+
                     else:
                         st.error("AI did not return data in the expected list format.")
                         st.text("Raw AI response:")
                         st.text(ai_response_content)
 
-
             except json.JSONDecodeError as e:
                 st.error(f"Error decoding AI response as JSON: {e}")
                 st.text("Raw AI response that failed to parse:")
-                st.text(ai_response_content) # แสดง raw response เพื่อช่วย debug
+                st.text(ai_response_content)
             except openai.APIError as e:
                 st.error(f"An OpenAI API error occurred: {e}")
                 st.error("Please check your API key, account quota, model access, and network connection.")
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
-                if ai_response_content: # ถ้ามี response content ให้แสดงออกมา
+                if ai_response_content:
                     st.text("Raw AI response during unexpected error:")
                     st.text(ai_response_content)
-        # ✨✨✨ สิ้นสุดส่วนการ Parse JSON ✨✨✨
 
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Download Pareto Data (CSV)", data=csv, file_name="pvc_pareto_data.csv", mime="text/csv")
