@@ -1,4 +1,4 @@
-import streamlit as st
+หำแพำะ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import openai
@@ -14,10 +14,28 @@ num_problems = st.number_input("Number of problems:", min_value=1, max_value=15,
 problem_names = []
 problem_counts = []
 
+problem_options = [
+    "Uneven wall thickness",
+    "Rough surface",
+    "Cracks or longitudinal splits",
+    "Pipe warping or bending",
+    "Color inconsistency",
+    "Bubbles or voids",
+    "Underfilled / short pipe",
+    "Ring marks / scoring",
+    "Bell end deformation",
+    "Temperature instability",
+    "Other (please specify)"
+]
+
 for i in range(num_problems):
     col1, col2 = st.columns([3, 1])
     with col1:
-        name = st.text_input(f"Problem {i+1}", key=f"pname_{i}")
+        selected = st.selectbox(f"Problem {i+1}", problem_options, key=f"prob_{i}")
+        if selected == "Other (please specify)":
+            name = st.text_input(f"Specify problem {i+1}", key=f"custom_prob_{i}")
+        else:
+            name = selected
     with col2:
         count = st.number_input(f"Count {i+1}", min_value=0, step=1, key=f"pcount_{i}")
     problem_names.append(name)
