@@ -6,8 +6,8 @@ import openai
 # Set OpenAI API key from secrets
 openai.api_key = st.secrets["openai_api_key"]
 
-st.title("Pareto Problem Analyzer with AI")
-st.markdown("Enter manufacturing problems and their frequency. The system will show a Pareto chart and suggest insights.")
+st.title("Pareto Problem Analyzer with AI Action Plan") #ปรับชื่อ Title เล็กน้อย
+st.markdown("Enter manufacturing problems and their frequency. The system will show a Pareto chart and suggest insights as an action plan table.")
 
 num_problems = st.number_input("Number of problems:", min_value=1, max_value=15, value=5)
 
@@ -41,7 +41,7 @@ for i in range(num_problems):
     problem_names.append(name)
     problem_counts.append(count)
 
-if st.button("🔍 Analyze Problems"):
+if st.button("🔍 Analyze Problems & Generate Action Plan"): # ปรับชื่อปุ่ม
     df_raw = pd.DataFrame({"Problem": problem_names, "Count": problem_counts})
     df = df_raw.groupby("Problem", as_index=False).sum()
     df = df[df["Count"] > 0].sort_values(by="Count", ascending=False).reset_index(drop=True)
@@ -59,60 +59,50 @@ if st.button("🔍 Analyze Problems"):
     ax2.legend(loc="lower right")
     st.pyplot(fig)
 
-    # Prepare top 3 for analysis
-    top_problems = df.head(3)
-    text_prompt = "Analyze the top 3 problems and suggest potential causes and solutions based on manufacturing best practices:\n"
+    # --- ส่วนของการเรียก AI และแสดงผลเป็นตาราง ---
+    top_problems = df.head(3) # หรือจะเลือกจำนวนปัญหาอื่นก็ได้ตามต้องการ
+    
+    # สร้างรายการปัญหาสำหรับส่งให้ AI
+    problem_list_for_ai = "Analyze the following top manufacturing problems and provide an action plan:\n"
     for idx, row in top_problems.iterrows():
-        text_prompt += f"{idx+1}. {row['Problem']} - {row['Count']} times\n"
+        problem_list_for_ai += f"{idx+1}. Problem: {row['Problem']} (occurred {row['Count']} times)\n"
 
-    st.subheader("💡 AI Insight")
-    with st.spinner("Thinking like an industrial engineer..."):
-        response = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a manufacturing quality expert."},
-                {"role": "user", "content": text_prompt}
-            ],
-            temperature=0.3
+    # ปรับปรุง Subheader
+    st.subheader("💡 AI Insight & Action Plan Table")
+    with st.spinner("🤖 Generating AI analysis and action plan table... This might take a moment."):
+        # กำหนด System Prompt ใหม่เพื่อให้ AI สร้างตาราง
+        system_prompt_content = (
+            "You are a manufacturing quality expert. Your task is to analyze the provided manufacturing problems. "
+            "For each problem, identify potential causes, suggest actionable solutions, and assign a primary responsible department "
+            "for implementing those solutions. Present your entire analysis ONLY as a markdown table with the following columns: "
+            "'Problem', 'Potential Cause', 'Suggested Solution', 'Responsible Department'. "
+            "The possible departments are: Production Team, Maintenance Team, Quality Assurance (QA) Team, "
+            "Engineering Team, Raw Materials/Procurement Team, Logistics Team, R&D Team, Management. "
+            "For the 'Problem' column, list the problem name as provided. "
+            "Ensure your response contains only the markdown table and no other introductory or concluding text."
         )
-        result_text = response.choices[0].message.content
-        st.markdown(result_text)
+        
+        try:
+            response = openai.chat.completions.create(
+                model="gpt-4",  # GPT-4 เหมาะสำหรับงานที่ต้องการความเข้าใจคำสั่งซับซ้อนและการสร้างตาราง
+                messages=[
+                    {"role": "system", "content": system_prompt_content},
+                    {"role": "user", "content": problem_list_for_ai} # ส่งรายการปัญหาให้ AI
+                ],
+                temperature=0.2 # ลด temperature เพื่อให้ได้ผลลัพธ์ที่ตรงประเด็นและเป็นโครงสร้าง
+            )
+            ai_response_table_markdown = response.choices[0].message.content
+            
+            # แสดงผลตาราง Markdown ที่ AI สร้างขึ้น
+            st.markdown(ai_response_table_markdown)
 
-        # --- ✨ ส่วนที่เพิ่มเข้ามา: สร้างและแสดงรูปภาพจาก AI Insight ✨ ---
-        st.subheader("🖼️ Visual Aid from AI")
-        with st.spinner("🎨 Generating illustrative image... This may take a moment."):
-            try:
-                # สร้าง prompt สำหรับ DALL-E จาก result_text
-                # คุณสามารถปรับปรุง prompt นี้เพื่อให้ได้ผลลัพธ์ที่ดีขึ้น
-                # ใช้ส่วนหนึ่งของ result_text เพื่อไม่ให้ prompt ยาวเกินไป
-                image_prompt_detail = result_text[:400] # จำกัดความยาวเพื่อประสิทธิภาพ
-                
-                if len(image_prompt_detail.strip()) < 20: # ตรวจสอบว่าข้อความไม่สั้นเกินไป
-                    st.warning("AI insight text is too short to generate a meaningful image.")
-                else:
-                    # สร้าง prompt ที่กระชับและสื่อความหมายสำหรับ DALL-E
-                    image_prompt = (
-                        f"Create a clear and simple visual illustration for manufacturing workers. "
-                        f"The image should explain solutions or key concepts based on the following advice: '{image_prompt_detail}...'. "
-                        f"Focus on visual clarity and ease of understanding for a factory setting."
-                    )
+        except openai.APIError as e:
+            st.error(f"An OpenAI API error occurred: {e}")
+            st.error("Please check your API key, quota, and network connection.")
+        except Exception as e:
+            st.error(f"An unexpected error occurred while fetching AI insights: {e}")
+    # --- สิ้นสุดส่วน AI ---
 
-                    image_response = openai.images.generate(
-                        model="dall-e-3",  # หรือ "dall-e-2" (DALL-E 3 ให้ผลลัพธ์ที่ดีกว่า แต่ DALL-E 2 อาจมีค่าใช้จ่ายต่ำกว่า)
-                        prompt=image_prompt,
-                        n=1, # จำนวนรูปภาพที่ต้องการ
-                        size="1024x1024",  # ขนาดรูปภาพ, DALL-E 3 รองรับ "1024x1024", "1792x1024", "1024x1792"
-                        response_format="url" # ขอ URL ของรูปภาพ (เป็น default สำหรับ DALL-E 3)
-                        # quality="standard" # or "hd" for DALL-E 3
-                    )
-                    generated_image_url = image_response.data[0].url
-                    st.image(generated_image_url, caption="AI Generated Illustration based on Insights")
-            except openai.APIError as e:
-                st.error(f"An OpenAI API error occurred while generating the image: {e}")
-            except Exception as e:
-                st.error(f"Could not generate image due to an unexpected error: {e}")
-        # --- ✨ สิ้นสุดส่วนที่เพิ่มเข้ามา ✨ ---
-
-    # Download button
+    # Download button (ข้อมูลดิบ Pareto)
     csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download Pareto Data", data=csv, file_name="pareto_data.csv", mime="text/csv")
+    st.download_button("📥 Download Pareto Data (CSV)", data=csv, file_name="pareto_data.csv", mime="text/csv")
