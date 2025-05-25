@@ -67,7 +67,7 @@ if st.button("🔍 Analyze Problems"):
 
     st.subheader("AI Insight")
     with st.spinner("Thinking like an industrial engineer..."):
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a manufacturing quality expert."},
