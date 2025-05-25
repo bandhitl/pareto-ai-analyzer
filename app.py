@@ -4,11 +4,8 @@ import matplotlib.pyplot as plt
 import openai
 import json
 
-# ✨✨✨ 1. ตั้งค่า Layout ของหน้าให้เป็น "wide" ✨✨✨
-# ควรเป็นคำสั่ง Streamlit แรกสุดในสคริปต์ของคุณ
 st.set_page_config(layout="wide")
 
-# Set OpenAI API key from secrets
 openai.api_key = st.secrets["openai_api_key"]
 
 st.title("PVC Pipe Production Problem Analyzer & AI Action Plan")
@@ -52,7 +49,7 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
         df["Cumulative %"] = df["Count"].cumsum() / df["Count"].sum() * 100
 
         st.subheader("Pareto Chart of PVC Pipe Production Problems")
-        fig, ax1 = plt.subplots(figsize=(10, 5)) # อาจจะไม่ต้อง figsize ใหญ่มากถ้าหน้า wide แล้ว
+        fig, ax1 = plt.subplots(figsize=(10, 5))
         ax1.bar(df["Problem"], df["Count"], color="deepskyblue")
         ax2 = ax1.twinx()
         ax2.plot(df["Problem"], df["Cumulative %"], color="crimson", marker='o', linewidth=2)
@@ -135,8 +132,45 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
                         ]
                         display_columns = [col for col in desired_column_order if col in df_analysis.columns]
                         
-                        # ✨✨✨ 2. แสดงผล DataFrame โดยให้ใช้ความกว้างของ container ✨✨✨
-                        st.dataframe(df_analysis[display_columns], use_container_width=True)
+                        # ✨✨✨ 3. กำหนด column_config เพื่อปรับความกว้างของคอลัมน์ ✨✨✨
+                        column_configs = {}
+                        text_heavy_columns = [
+                            "Potential Cause (PVC Specific)", 
+                            "Suggested Solution (PVC Specific)", 
+                            "Short-Term Action/Plan (1-3 months)", 
+                            "Long-Term Action/Plan (6-12 months)"
+                        ]
+                        # ตรวจสอบว่าชื่อคอลัมน์ใน text_heavy_columns ตรงกับชื่อใน display_columns (ซึ่งเป็นชื่อที่ "สวยงาม" แล้ว)
+                        
+                        for col_name in display_columns:
+                            if col_name in text_heavy_columns:
+                                column_configs[col_name] = st.column_config.TextColumn(
+                                    label=col_name,
+                                    width="large"  # "small", "medium", "large", or integer (pixels)
+                                )
+                            elif col_name == "Problem":
+                                column_configs[col_name] = st.column_config.TextColumn(
+                                    label=col_name,
+                                    width="medium"
+                                )
+                            elif col_name == "Responsible Department":
+                                column_configs[col_name] = st.column_config.TextColumn(
+                                    label=col_name,
+                                    width="small"
+                                )
+                            else: # สำหรับคอลัมน์อื่นๆ ที่อาจจะไม่ได้กำหนดไว้
+                                column_configs[col_name] = st.column_config.TextColumn(
+                                    label=col_name,
+                                    width="medium"
+                                )
+                        
+                        st.dataframe(
+                            df_analysis[display_columns], 
+                            use_container_width=True,
+                            column_config=column_configs,
+                            # height=600 # ลองเอา height ออกเพื่อให้ตารางปรับความสูงตามเนื้อหา หรือกำหนดค่าที่เหมาะสม
+                        )
+                        # ✨✨✨ สิ้นสุดการกำหนด column_config ✨✨✨
 
                     else:
                         st.error("AI did not return data in the expected list format.")
