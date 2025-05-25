@@ -58,29 +58,18 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
 
         st.subheader("Pareto Chart of PVC Pipe Production Problems")
         fig, ax1 = plt.subplots(figsize=(10, 5))
-        
-        # สร้าง bar plot ซึ่งจะกำหนด x-ticks และ labels เริ่มต้นตาม df["Problem"]
-        ax1.bar(df["Problem"], df["Count"], color="deepskyblue") 
-        
+        ax1.bar(df["Problem"], df["Count"], color="deepskyblue")
         ax2 = ax1.twinx()
         ax2.plot(df["Problem"], df["Cumulative %"], color="crimson", marker='o', linewidth=2)
-        
         ax1.set_ylabel("Frequency Count", fontweight='bold')
         ax2.set_ylabel("Cumulative Percentage (%)", fontweight='bold')
-
-        # ✨✨✨ บรรทัดที่แก้ไข ✨✨✨
-        # กำหนดคุณสมบัติของป้ายชื่อแกน x (rotation และ horizontal alignment)
-        # โดยใช้ df["Problem"] เป็นป้ายชื่อ ซึ่งตรงกับที่ bar plot ใช้
         ax1.set_xticklabels(df["Problem"], rotation=45, ha='right')
-        # ✨✨✨ สิ้นสุดการแก้ไข ✨✨✨
-
         ax1.grid(axis='y', linestyle='--', alpha=0.7)
         ax2.axhline(80, color='gray', linestyle='--', label='80% Vital Few Line')
         ax2.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=1)
         fig.tight_layout()
         st.pyplot(fig)
 
-        # --- ส่วนของการเรียก AI และแสดงผลเป็นตาราง ---
         num_top_problems_to_analyze = min(len(df), 3)
         top_problems_df = df.head(num_top_problems_to_analyze)
         
@@ -91,6 +80,7 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
         st.subheader("⚙️ AI Expert Analysis & Action Plan for PVC Pipe Production")
         with st.spinner("Consulting PVC Pipe Production AI Expert and drafting detailed action plan... This may take some time."):
             
+            # ✨✨✨ ปรับปรุง System Prompt ✨✨✨
             system_prompt_content = (
                 "You are an AI assistant acting as an Expert in PVC pipe production with over 20 years of experience. "
                 "Your task is to analyze the provided manufacturing problems, which are specific to PVC pipe production. "
@@ -102,8 +92,12 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
                 "5. 'Short-Term Action/Plan (1-3 months)': Concrete, immediate actions or a concise plan that can be implemented within 1 to 3 months to mitigate or resolve the problem. Include specific checks or trials.\n"
                 "6. 'Long-Term Action/Plan (6-12 months)': Strategic actions or a comprehensive plan for sustained improvement or permanent solutions. This may involve equipment upgrades, process re-engineering, supplier development, comprehensive training programs, or implementation of advanced quality systems (e.g., SPC).\n\n"
                 "The possible departments are: Production, Maintenance, Quality Assurance (QA), Process Engineering, Formulation/R&D, Raw Material Procurement, Tooling, Management.\n"
-                "Ensure your response contains only the markdown table and no other introductory or concluding text. Your advice should be highly practical and reflect deep expertise in PVC pipe manufacturing challenges."
+                "Ensure your response contains only the markdown table and no other introductory or concluding text. "
+                "For multi-line content within a table cell, use natural sentence flow and allow the markdown renderer to handle wrapping; **do not use HTML tags like `<br>` or `<p>` for line breaks inside cells.** " # <--- คำสั่งใหม่
+                "Keep descriptions within cells concise yet informative, using bullet points (e.g., using '-' or '*') for multiple distinct points if appropriate within a cell. " # <--- คำแนะนำเพิ่มเติม
+                "Your advice should be highly practical and reflect deep expertise in PVC pipe manufacturing challenges."
             )
+            # ✨✨✨ สิ้นสุดการปรับปรุง System Prompt ✨✨✨
             
             try:
                 response = openai.chat.completions.create(
@@ -116,7 +110,12 @@ if st.button("🔍 Analyze PVC Problems & Generate Detailed Action Plan"):
                 )
                 ai_response_table_markdown = response.choices[0].message.content
                 
-                st.markdown(ai_response_table_markdown)
+                # ✨✨✨ เพิ่มการทำความสะอาด <br> tags ✨✨✨
+                # ลบ <br>, <br/>, <BR> และแทนที่ด้วยการเว้นวรรคเพื่อให้การตัดคำเป็นธรรมชาติมากขึ้น
+                ai_response_table_markdown = ai_response_table_markdown.replace("<br>", " ").replace("<br/>", " ").replace("<BR>", " ")
+                # ✨✨✨ สิ้นสุดการทำความสะอาด ✨✨✨
+
+                st.markdown(ai_response_table_markdown, unsafe_allow_html=False) # ตั้งค่า unsafe_allow_html=False เพื่อความปลอดภัย
 
             except openai.APIError as e:
                 st.error(f"An OpenAI API error occurred: {e}")
